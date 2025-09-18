@@ -75,7 +75,7 @@ def parse_city(city_root: str) -> City:
     metadata_file = os.path.join(city_root, METADATA_FILE)
     assert os.path.exists(metadata_file), city_root
 
-    with open(metadata_file) as fp:
+    with open(metadata_file, encoding='utf-8') as fp:
         city_dict = pyjson5.decode_io(fp)
         city = City(city_dict["city_name"], city_root, city_dict.get("city_aliases"))
 

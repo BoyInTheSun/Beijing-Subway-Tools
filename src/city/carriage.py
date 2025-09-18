@@ -49,7 +49,7 @@ class Carriage:
 def parse_carriage(carriage_file: str) -> dict[str, Carriage]:
     """ Parse JSON5 file as carriage metadata """
     assert os.path.exists(carriage_file), carriage_file
-    with open(carriage_file) as fp:
+    with open(carriage_file, encoding='utf-8') as fp:
         carriage_dict = pyjson5.decode_io(fp)
 
     result: dict[str, Carriage] = {}

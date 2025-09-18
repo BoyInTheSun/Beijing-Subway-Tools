@@ -267,7 +267,7 @@ def get_fare_single(
 def parse_fare_rules(fare_file: str, lines: dict[str, Line], date_groups: dict[str, DateGroup]) -> Fare:
     """ Pare fare rule file """
     assert os.path.exists(fare_file), fare_file
-    with open(fare_file) as fp:
+    with open(fare_file, encoding='utf-8') as fp:
         fare_dict = pyjson5.decode_io(fp)
     currency = fare_dict.get("currency", "")
     fill_index: str | None = None

@@ -286,7 +286,7 @@ def station_full_name(station: str, lines: dict[str, Line] | set[Line]) -> str:
 def parse_line(carriage_dict: dict[str, Carriage], line_file: str) -> tuple[Line, bool]:
     """ Parse JSON5 file as a line """
     assert os.path.exists(line_file), line_file
-    with open(line_file) as fp:
+    with open(line_file, encoding='utf-8') as fp:
         line_dict = pyjson5.decode_io(fp)
         carriage = carriage_dict[line_dict["carriage_type"]]
 
