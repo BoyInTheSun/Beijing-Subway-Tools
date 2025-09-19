@@ -14,15 +14,19 @@ from src.common.common import get_time_str, NoIndent, InnerArrayEncoder
 from src.routing.train import parse_all_trains
 
 
-def generate_train_key(line_index: int, direction_index: int, date_group_index: int, train_index: int) -> str:
+def generate_train_key(line_index: int, line_badge: str | None, direction_index: int, date_group_index: int, train_index: int) -> str:
     """ Generate a string key for each train """
     # Format: AABCCC
-    # AA: line index
+    # AA: line index or badge
     # B: direction Index (/5 for date_group index, %5 for direction index)
     # CCC: train index
+    line_aa = line_badge[:2] if line_badge else f'{line_index:02}'
     cal_direction = 5 * date_group_index + direction_index
+    if line_index == 18:
+        line_aa = '17'
+        cal_direction += 2
     assert 0 <= cal_direction <= 9, (direction_index, date_group_index)
-    return f"{line_index:02}{cal_direction}{train_index:03}"
+    return f"{line_aa}{cal_direction}{train_index:03}"
 
 
 def filter_date_group(test_dict: dict[str, dict], line: Line, cur_date: date) -> dict:
@@ -75,10 +79,11 @@ def main() -> None:
                 if date_group not in result[line.name][direction]:
                     result[line.name][direction][date_group] = {}
                 for train_index, train in enumerate(sorted(train_list, key=lambda t: t.start_time_str())):
+                    train_index += 1  # start with 1
                     if not args.all_lines and not args.all_directions and not args.all_date_groups:
                         train_key = str(train_index)
                     else:
-                        train_key = generate_train_key(line.index, direction_index, date_group_index, train_index)
+                        train_key = generate_train_key(line.index, line.badge, direction_index, date_group_index, train_index)
                     if train_key not in result[line.name][direction][date_group]:
                         result[line.name][direction][date_group][train_key] = []
                     for station, arrival_time in train.arrival_time.items():
@@ -86,7 +91,7 @@ def main() -> None:
                         if station in train.skip_stations:
                             prepend = "("
                         result[line.name][direction][date_group][train_key].append(
-                            NoIndent((station, prepend + get_time_str(*arrival_time)))
+                            NoIndent((station, prepend + get_time_str(arrival_time[0])))
                         )
 
     # Output
