@@ -253,6 +253,9 @@ def parse_shorthand(shorthand: str, city: City, start: str, end: str) -> Route |
             continue
         if i == len(processed) - 1:
             next_station = end
+            if cur_starting == next_station:
+                print("Duplicate transfer with ending station!")
+                return None
         else:
             next_entry = processed[i + 1]
             if isinstance(next_entry, str):
@@ -535,7 +538,7 @@ def add_by_longest(city: City, args: argparse.Namespace) -> list[Route]:
     if non_repeating:
         line_requirements = questionary.select(
             "Please select requirements for lines in the resulting path:",
-            choices=["None", "Each at least once", "Each exactly once"]
+            choices=["None", "Each at least once", "Each exactly once", "Each at most once"]
         ).ask()
         if line_requirements is None:
             sys.exit(0)
@@ -545,6 +548,8 @@ def add_by_longest(city: City, args: argparse.Namespace) -> list[Route]:
             local_args.line_requirements = "each"
         elif line_requirements == "Each exactly once":
             local_args.line_requirements = "each_once"
+        elif line_requirements == "Each at most once":
+            local_args.line_requirements = "most_once"
         else:
             assert False, line_requirements
 

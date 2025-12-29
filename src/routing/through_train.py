@@ -5,6 +5,7 @@
 
 # Libraries
 from collections.abc import Iterable
+from functools import lru_cache
 
 from src.city.line import Line
 from src.city.through_spec import ThroughSpec
@@ -35,6 +36,14 @@ class ThroughTrain:
         """ Capacity for this line """
         return self.carriage_type.train_capacity(self.carriage_num)
 
+    def train_code(self) -> str:
+        """ Code name for this line """
+        return self.carriage_type.train_code(self.carriage_num)
+
+    def train_formal_name(self) -> str:
+        """ Formal name for a train """
+        return self.carriage_type.train_formal_name(self.carriage_num)
+
     def first_train(self) -> Train:
         """ Return first train """
         return self.trains[self.spec.spec[0][0].name]
@@ -55,6 +64,23 @@ class ThroughTrain:
             else:
                 arrival_times.update({k: v for k, v in train.arrival_time.items() if k != train.stations[0]})
         return arrival_times
+
+    def two_station_dist(self, start_station: str, end_station: str) -> int:
+        """ Distance between two stations """
+        tally = 0
+        start = False
+        for i, (line, train) in enumerate(self.trains.items()):
+            if start:
+                if end_station in train.stations or i == len(self.trains) - 1:
+                    return tally + train.two_station_dist(train.stations[0], end_station)
+                tally += train.distance()
+            if start_station in train.stations and end_station in train.stations:
+                return train.two_station_dist(start_station, end_station)
+            elif start_station in train.stations:
+                tally += train.two_station_dist(start_station, train.stations[-1])
+                start = True
+        assert False, (self, start_station, end_station)
+
 
     def station_lines(self, *, prev_on_transfer: bool = True) -> dict[str, tuple[Line, str, Train]]:
         """ Return the station -> (line, direction, train) mapping """
@@ -91,18 +117,22 @@ class ThroughTrain:
                 print("\n(through to)\n")
             self.trains[line.name].pretty_print(with_speed=with_speed)
 
+    @lru_cache
     def duration(self) -> int:
         """ Total duration """
         return diff_time_tuple(self.last_train().end_time(), self.first_train().start_time())
 
+    @lru_cache
     def distance(self) -> int:
         """ Total distance covered """
         return sum(train.distance() for train in self.trains.values())
 
+    @lru_cache
     def speed(self) -> float:
         """ Speed of the entire train """
         return segment_speed(self.distance(), self.duration())
 
+    @lru_cache
     def is_full(self) -> bool:
         """ Determine if this train is a full-distance train """
         # The criteria here is that the first and last train runs to both ends; we don't care about the middle trains
@@ -112,6 +142,7 @@ class ThroughTrain:
             self.last_train().direction
         ].stations[-1]
 
+    @lru_cache
     def is_express(self) -> bool:
         """ Determine if this train is an express train """
         return any(t.is_express() for t in self.trains.values())

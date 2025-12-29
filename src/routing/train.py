@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from functools import lru_cache
 
 from src.city.line import Line
 from src.city.train_route import TrainRoute, stations_dist, route_dist
@@ -33,6 +34,26 @@ class Train:
         self.arrival_time = arrival_time
         self.loop_prev: Train | None = None
         self.loop_next: Train | None = None
+
+    def last_station(self) -> str:
+        """ Get last station in the timetable """
+        if self.loop_next is not None:
+            return self.loop_next.stations[0]
+        return self.stations[-1]
+
+    def last_time(self) -> TimeSpec:
+        """ Train last time """
+        if self.loop_next is not None:
+            return self.loop_next.arrival_time[self.loop_next.stations[0]]
+        return self.arrival_time[self.stations[-1]]
+
+    def last_time_str(self) -> str:
+        """ Train last time string """
+        return get_time_str(*self.last_time())
+
+    def last_time_repr(self) -> str:
+        """ Train last time representation """
+        return get_time_repr(*self.end_time())
 
     def __repr__(self) -> str:
         """ Get string representation """
@@ -247,6 +268,7 @@ class Train:
         """ One-line short representation """
         return repr(self)[1:-1]
 
+    @lru_cache
     def duration(self) -> int:
         """ Total duration """
         start_time, start_day = self.start_time()
@@ -256,6 +278,7 @@ class Train:
             end_time, end_day = self.loop_next.start_time()
         return diff_time(end_time, start_time, end_day, start_day)
 
+    @lru_cache
     def distance(self, start_station: str | None = None) -> int:
         """ Total distance covered """
         assert start_station is None or start_station in self.stations, (self, start_station)
@@ -269,16 +292,19 @@ class Train:
             self.stations[index:], self.loop_next is not None
         )
 
+    @lru_cache
     def is_full(self) -> bool:
         """ Determine if this train is a full-distance train """
         if self.line.loop and self.loop_next is None:
             return False
         return self.stations == self.line.direction_base_route[self.direction].stations
 
+    @lru_cache
     def is_express(self) -> bool:
         """ Determine if this train is an express train """
         return len(self.skip_stations) > 0
 
+    @lru_cache
     def speed(self) -> float:
         """ Speed of the entire train """
         return segment_speed(self.distance(), self.duration())

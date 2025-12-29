@@ -7,6 +7,7 @@
 import os
 import re
 from datetime import date
+from functools import lru_cache
 
 import pyjson5
 
@@ -14,7 +15,7 @@ from src.city.carriage import Carriage
 from src.city.date_group import DateGroup, parse_date_group
 from src.city.train_route import TrainRoute, parse_train_route, route_dist, stations_dist
 from src.common.common import distance_str, average, circular_dist
-from src.timetable.timetable import Timetable, parse_timetable
+from src.timetable.timetable import Timetable, parse_timetable, route_stations, route_skip_stations
 
 
 class Line:
@@ -164,6 +165,7 @@ class Line:
             f", {len(self.stations)} stations, " + distance_str(self.total_distance()) + \
             (", loop" if self.loop else "")
 
+    @lru_cache
     def total_distance(self, direction: str | None = None) -> float:
         """ Total distance of this line """
         data = {
@@ -176,12 +178,17 @@ class Line:
             return data[direction]
         return average(data.values())
 
-    def route_distance(self, route: TrainRoute) -> float:
-        """ Total distance of a route """
-        return route_dist(
-            self.direction_stations(route.direction),
-            self.direction_dists(route.direction),
-            route.stations, route.loop
+    def route_sort_key(self, direction: str, route: list[TrainRoute]) -> tuple[int, float, int]:
+        """ Key for sorting routes """
+        stations = route_stations(route)[0]
+        return (
+            self.direction_stations(direction).index(stations[0]),
+            -route_dist(
+                self.direction_stations(direction),
+                self.direction_dists(direction),
+                stations, all(r.loop for r in route)
+            ),
+            len(route_skip_stations(route))
         )
 
     def two_station_intervals(

@@ -12,10 +12,13 @@ from nicegui import binding, ui
 from src.city.city import City, parse_station_lines
 from src.city.line import Line
 from src.city.through_spec import ThroughSpec
-from src.common.common import distance_str, speed_str, suffix_s, get_text_color, to_pinyin, get_time_str, parse_time, \
+from src.common.common import distance_str, speed_str, suffix_s, get_text_color, to_pinyin, parse_time, \
     diff_time_tuple, format_duration
-from src.ui.common import get_line_selector_options, MAX_TRANSFER_LINE_COUNT, LINE_TYPES, get_date_input, get_all_trains
-from src.ui.drawers import refresh_line_drawer, get_line_badge, refresh_station_drawer, refresh_drawer
+from src.routing.train import Train
+from src.ui.common import get_line_selector_options, MAX_TRANSFER_LINE_COUNT, LINE_TYPES, get_date_input, \
+    get_all_trains, get_train_id_through, find_train_id, find_first_train, get_line_row, get_line_html, get_station_html
+from src.ui.drawers import refresh_line_drawer, get_line_badge, refresh_station_drawer, refresh_drawer, \
+    refresh_train_drawer
 
 
 @binding.bindable_dataclass
@@ -37,10 +40,7 @@ def calculate_line_rows(lines: dict[str, Line], through_specs: list[ThroughSpec]
             num_intervals -= 1
         row = {
             "index": line.index,
-            "name": [
-                (line.index, line.name, line.color or "primary", get_text_color(line.color), line.badge_icon or ""),
-                (line.index, line.get_badge(), line.color or "primary", get_text_color(line.color), line.badge_icon or "")
-            ],
+            "name": [get_line_row(line), get_line_row(line, force_badge=True)],
             "name_sort": to_pinyin(line.name)[0],
             "line_type": [(x, LINE_TYPES[x][0], LINE_TYPES[x][1]) for x in line.line_type()] + (
                 [("Through", LINE_TYPES["Through"][0], LINE_TYPES["Through"][1])] if any(
@@ -76,9 +76,18 @@ def calculate_line_rows(lines: dict[str, Line], through_specs: list[ThroughSpec]
 def calculate_station_rows(
     city: City, lines: dict[str, Line], station_lines: dict[str, set[Line]], cur_date: date,
     *, full_only: bool = False, show_ending: bool = False
-) -> list[dict]:
+) -> tuple[list[dict], dict[tuple[str, str], dict[str, Train]]]:
     """ Calculate rows for the station table """
     all_trains, virtual_dict = get_all_trains(city, lines, cur_date, full_only=full_only, show_ending=show_ending)
+    train_list = list({x for tl in all_trains.values() for x in tl})
+    line_id_dict: dict[tuple[str, str], dict[str, Train]] = {}  # (line, direction) -> (id -> train)
+
+    def add_line(line: Line, direction: str) -> dict[str, Train]:
+        """ Add an id dict to line """
+        key = (line.name, direction)
+        if key not in line_id_dict:
+            line_id_dict[key] = get_train_id_through(train_list, line, direction)
+        return line_id_dict[key]
 
     rows = []
     for station, line_set in station_lines.items():
@@ -100,8 +109,11 @@ def calculate_station_rows(
                 ]))
             virtual_transfers_sort = ", ".join(to_pinyin(x[0])[0] for x in virtual_transfers)
 
-        first_time = min(get_time_str(*train.arrival_times()[station]) for train in all_trains[station])
-        last_time = max(get_time_str(*train.arrival_times()[station]) for train in all_trains[station])
+        first_train, first_time = find_first_train(all_trains[station], station)
+        first_dict = add_line(first_train.line, first_train.direction)
+        last_train, last_time = find_first_train(all_trains[station], station, reverse=True)
+        last_dict = add_line(last_train.line, last_train.direction)
+
         operating_time = diff_time_tuple(parse_time(last_time), parse_time(first_time))
         row = {
             "name": (station, [
@@ -120,13 +132,13 @@ def calculate_station_rows(
             "virtual_transfers_sort": virtual_transfers_sort,
             "num_lines": len(line_list),
             "num_trains": len(all_trains[station]),
-            "first_train": first_time,
-            "last_train": last_time,
+            "first_train": (first_time, first_train.line.name, first_train.direction, find_train_id(first_dict, first_train)),
+            "last_train": (last_time, last_train.line.name, last_train.direction, find_train_id(last_dict, last_train)),
             "operating_time": format_duration(operating_time),
             "operating_time_sort": operating_time
         }
         rows.append(row)
-    return sorted(rows, key=lambda r: to_pinyin(r["name"][0])[0])
+    return sorted(rows, key=lambda r: to_pinyin(r["name"][0])[0]), line_id_dict
 
 
 def info_tab(city: City, data: InfoData) -> None:
@@ -162,7 +174,7 @@ def info_tab(city: City, data: InfoData) -> None:
             stations_table.rows = calculate_station_rows(
                 city, data.lines, data.station_lines, date.fromisoformat(date_input.value),
                 full_only=date_full_switch.value, show_ending=ending_switch.value
-            )
+            )[0]
 
         def on_line_badge_click(line: Line) -> None:
             """ Refresh the line drawer with the clicked line """
@@ -333,32 +345,9 @@ def info_tab(city: City, data: InfoData) -> None:
             )
             lines_table.on("lineBadgeClick", lambda n: refresh_line_drawer(line_indexes[n.args], data.lines))
             lines_table.on("stationBadgeClick", lambda n: refresh_station_drawer(n.args, data.station_lines))
-            lines_table.add_slot("body-cell-name", """
-<q-td key="name" :props="props">
-    <q-badge v-for="[index, name, color, textColor, icon] in props.value" :style="{ background: color }" :text-color="textColor" @click="$parent.$emit('lineBadgeClick', index)" class="cursor-pointer">
-        {{ name }}
-        <q-icon v-if="icon !== ''" :name="icon" class="q-ml-xs" />
-    </q-badge>
-</q-td>
-            """)
-            lines_table.add_slot("body-cell-start", """
-<q-td key="start" :props="props" @click="$parent.$emit('stationBadgeClick', props.value[0])" class="cursor-pointer">
-    {{ props.value[0] }}
-    <q-badge v-for="[index, name, color, textColor, icon] in props.value[1]" :style="{ background: color }" :text-color="textColor" @click.stop="$parent.$emit('lineBadgeClick', index)" class="cursor-pointer">
-        {{ name }}
-        <q-icon v-if="icon !== ''" :name="icon" class="q-ml-xs" />
-    </q-badge>
-</q-td>
-            """)
-            lines_table.add_slot("body-cell-end", """
-<q-td key="end" :props="props" @click="$parent.$emit('stationBadgeClick', props.value[0])" class="cursor-pointer">
-    {{ props.value[0] }}
-    <q-badge v-for="[index, name, color, textColor, icon] in props.value[1]" :style="{ background: color }" :text-color="textColor" @click.stop="$parent.$emit('lineBadgeClick', index)" class="cursor-pointer">
-        {{ name }}
-        <q-icon v-if="icon !== ''" :name="icon" class="q-ml-xs" />
-    </q-badge>
-</q-td>
-            """)
+            lines_table.add_slot("body-cell-name", get_line_html("name"))
+            lines_table.add_slot("body-cell-start", get_station_html("start"))
+            lines_table.add_slot("body-cell-end", get_station_html("end"))
             lines_table.add_slot("body-cell-lineType", """
 <q-td key="lineType" :props="props">
     <q-badge v-for="[type, color, icon] in props.value" :color="color">
@@ -377,6 +366,10 @@ def info_tab(city: City, data: InfoData) -> None:
                 date_full_switch = ui.switch("Full-Distance only", on_change=lambda: on_switch_change(False))
                 ending_switch = ui.switch("Show ending trains", on_change=lambda: on_switch_change(False))
                 stations_search = ui.input("Search stations...")
+
+            station_rows, line_id_dict = calculate_station_rows(
+                city, city.lines, city.station_lines, date.fromisoformat(date_input.value)
+            )
             stations_table = ui.table(
                 columns=[
                     {"name": "name", "label": "Name", "field": "name", "align": "center",
@@ -418,11 +411,15 @@ def info_tab(city: City, data: InfoData) -> None:
                      "classes": "hidden", "headerClasses": "hidden"}
                 ],
                 column_defaults={"align": "right", "required": True, "sortable": True},
-                rows=calculate_station_rows(city, city.lines, city.station_lines, date.fromisoformat(date_input.value)),
+                rows=station_rows,
                 pagination=10
             )
             stations_table.on("lineBadgeClick", lambda n: refresh_line_drawer(line_indexes[n.args], data.lines))
             stations_table.on("stationBadgeClick", lambda n: refresh_station_drawer(n.args, data.station_lines))
+            stations_table.on("trainClick", lambda n: refresh_train_drawer(
+                line_id_dict[(n.args[0], n.args[1])][n.args[2]], n.args[2],
+                line_id_dict[(n.args[0], n.args[1])], data.station_lines
+            ))
             stations_table.add_slot("body-cell-name", """
 <q-td key="name" :props="props" @click="$parent.$emit('stationBadgeClick', props.value[0])" class="cursor-pointer">
     {{ props.value[0] }}
@@ -453,6 +450,16 @@ def info_tab(city: City, data: InfoData) -> None:
             </q-badge>
         </div>
     </div>
+</q-td>
+            """)
+            stations_table.add_slot("body-cell-firstTrain", """
+<q-td key="firstTrain" :props="props" @click="$parent.$emit('trainClick', props.value[1], props.value[2], props.value[3])" class="cursor-pointer">
+    {{ props.value[0] }}
+</q-td>
+            """)
+            stations_table.add_slot("body-cell-lastTrain", """
+<q-td key="firstTrain" :props="props" @click="$parent.$emit('trainClick', props.value[1], props.value[2], props.value[3])" class="cursor-pointer">
+    {{ props.value[0] }}
 </q-td>
             """)
             stations_search.bind_value(stations_table, "filter")

@@ -963,7 +963,7 @@ Minimum time path:
 # [`dist_graph/`](/src/dist_graph): Algorithms on the pure-distance graphs
 ### [`longest_path.py`](/src/dist_graph/longest_path.py): Find the longest path in a network
 ```
-usage: longest_path.py [-h] [-n] [-i INCLUDE_LINES | -x EXCLUDE_LINES] [--exclude-virtual] [--exclude-edge] [-a | -c] [--ignore-dists] [--line-requirements {none,each,each_once}] [--path-mode {min,max}]
+usage: longest_path.py [-h] [-n] [-i INCLUDE_LINES | -x EXCLUDE_LINES] [--exclude-virtual] [--exclude-edge] [-a | -c] [--ignore-dists] [--line-requirements {none,each,each_once,most_once}] [--path-mode {min,max}]
                        [--exclude-next-day]
 
 options:
@@ -978,7 +978,7 @@ options:
   -a, --all             Calculate all pairs of ending stations
   -c, --circuit         Calculate euler circuit
   --ignore-dists        Ignore distances (calculate only stations)
-  --line-requirements {none,each,each_once}
+  --line-requirements {none,each,each_once,most_once}
                         Line requirements for path
   --path-mode {min,max}
                         Path selection mode
@@ -995,7 +995,7 @@ Notice that duplicate nodes are allowed.
   - You can use the environmental variable `OMP_NUM_THREADS` to control the number of CPU cores to be utilized when calculating paths.
     - Large RAM consumption may appear when using more threads.
   - **NOTE: This may require several minutes to compute. Using `-n` with `-a` together is untested and may need several hours to finish computing. **
-- `--line-requirements` can be used to specify requirements to lines in the resulting path. `each` mean that each eligible line must be tranversed at least once, and `each_once` means exactly once.
+- `--line-requirements` can be used to specify requirements to lines in the resulting path. `each` mean that each eligible line must be tranversed at least once, `each_once` means exactly once, and `most_one` means at most once.
   - **NOTE: `each_lines` may require several hours to compute for complex networks.**
 - `--path-mode` can specify whether you want the longest or shortest line. (Default is longest)
 - Both of the last two arguments is only useful when `-n` is specified; they are ignored otherwise.
@@ -1135,26 +1135,28 @@ Waiting time: 2.5 minutes
 
 ### [`exotic_path.py`](/src/dist_graph/exotic_path.py): Find the weirdest path in a network
 ```
-usage: exotic_path.py [-h] [-n LIMIT_NUM] [-i INCLUDE_LINES | -x EXCLUDE_LINES] [--exclude-virtual] [--exclude-single] [--exclude-edge] [--include-express] [-p {all,line}] [-d {time,station,distance,fare}]
-                      [-c {time,station,distance,fare}] [--delta-metric DELTA_METRIC]
+usage: exotic_path.py [-h] [-n LIMIT_NUM] [-i INCLUDE_LINES | -x EXCLUDE_LINES] [--exclude-virtual [{none,all,base,compare}]] [--exclude-single] [--exclude-edge] [--include-express [{none,all,base,compare}]]
+                      [-p {all,line}] [-d {time,station,distance,fare}] [-c {time,station,distance,fare}] [--delta-metric DELTA_METRIC]
 
 options:
   -h, --help            show this help message and exit
-  -n LIMIT_NUM, --limit-num LIMIT_NUM
+  -n, --limit-num LIMIT_NUM
                         Limit number of output
-  -i INCLUDE_LINES, --include-lines INCLUDE_LINES
+  -i, --include-lines INCLUDE_LINES
                         Include lines
-  -x EXCLUDE_LINES, --exclude-lines EXCLUDE_LINES
+  -x, --exclude-lines EXCLUDE_LINES
                         Exclude lines
-  --exclude-virtual     Exclude virtual transfers
+  --exclude-virtual [{none,all,base,compare}]
+                        Exclude virtual transfers
   --exclude-single      Exclude single-direction lines
   --exclude-edge        Exclude edge case in transfer
-  --include-express     Include non-essential use of express lines
-  -p {all,line}, --pair-source {all,line}
+  --include-express [{none,all,base,compare}]
+                        Include non-essential use of express lines
+  -p, --pair-source {all,line}
                         Station pair source
-  -d {time,station,distance,fare}, --data-source {time,station,distance,fare}
+  -d, --data-source {time,station,distance,fare}
                         Path criteria
-  -c {time,station,distance,fare}, --compare-against {time,station,distance,fare}
+  -c, --compare-against {time,station,distance,fare}
                         Criteria to be compare against
   --delta-metric DELTA_METRIC
                         Delta metric
@@ -2697,6 +2699,67 @@ Minimum time path:
 Drawing done! Saving...
 </pre>
 
+### [`draw_clusters.py`](/src/graph/draw_clusters.py): Draw transfer station clusters on map
+```
+usage: draw_clusters.py [-h] [-c COLOR_MAP] [-o OUTPUT] [--dpi DPI] [-i INCLUDE_LINES | -x EXCLUDE_LINES] [--exclude-virtual] [-n LIMIT_NUM] [-d {station,distance}] [--exclude-transfer]
+
+options:
+  -h, --help            show this help message and exit
+  -c, --color-map COLOR_MAP
+                        Override default colormap
+  -o, --output OUTPUT   Output path
+  --dpi DPI             DPI of output image
+  -i, --include-lines INCLUDE_LINES
+                        Include lines
+  -x, --exclude-lines EXCLUDE_LINES
+                        Exclude lines
+  --exclude-virtual     Exclude virtual transfers
+  -n, --limit-num LIMIT_NUM
+                        Limit number of output
+  -d, --data-source {station,distance}
+                        Cluster size criteria
+  --exclude-transfer    Exclude transfer stations
+```
+Draw all the clusters formed by interconnected transfer/regular stations on the map.
+By default, clusters are ordered by number of stations; passing `-d distance` can change to order by total sum of edge lengths.
+`-n` only affects the console output; all clusters will be drawn on the graph.
+
+Example Usage:
+<pre>
+$ python3 src/graph/draw_floodfill.py -n 20 -o test.png
+? Please select a city: <i>北京</i>
+Largest/Smallest Transfer Station Clusters:
+#1: 36 stations: 巴沟, 北京南站, 北京西站, 北太平庄, 菜市口, 草桥, 长春桥, 车公庄, 达官营, 大钟寺(12号线), 大钟寺(13号线), 复兴门, 公主坟, 广安门内, 鼓楼大街, 海淀黄庄, 角门西, 蓟门桥, 景风门, 积水潭, 军事博物馆, 牡丹园, 木樨地(16号线), 木樨地(1号线), 牛街, 平安里, 人民大学, 苏州街, 苏州桥, 太平桥, 西单, 西土城, 西直门, 宣武门, 永定门外, 知春路
+#2: 32 stations: 北新桥, 崇文门, 磁器口, 大望路, 东单, 东四, 东四十条, 东直门, 工人体育场, 光熙门, 国贸, 和平西桥, 惠新西街南口, 呼家楼, 建国门, 金台路, 九龙山, 南锣鼓巷, 前门, 三元桥, 芍药居, 双井, 太阳宫, 团结湖, 王府井, 望京, 望京西, 西坝河, 雍和宫, 朝阳公园, 朝阳门, 珠市口
+#3: 5 stations: 东管头南, 丰台南路, 丰台站, 丽泽商务区, 首经贸
+#4: 3 stations: 白石桥南, 二里沟, 国家图书馆
+#5: 3 stations: 六里桥, 七里庄, 西局
+#6: 2 stations: 安华桥, 北土城
+#7: 2 stations: 环球度假区, 花庄
+#8: 2 stations: 霍营, 立水桥
+#9: 2 stations: 金安桥, 苹果园
+#10: 2 stations: 清河站, 西二旗
+#11: 1 station: 奥林匹克公园
+#12: 1 station: 次渠
+#13: 1 station: 慈寿寺
+#14: 1 station: 大屯路东
+#15: 1 station: 东坝北
+#16: 1 station: 郭公庄
+#17: 1 station: 六道口
+#18: 1 station: 蒲黄榆
+#19: 1 station: 十里河
+#20: 1 station: 宋家庄
+#21: 1 station: 新宫
+#22: 1 station: 西苑
+#23: 1 station: 阎村东
+#24: 1 station: 朱辛庄
+
+? Please select a map: <i>Official Map</i>
+Warning: cannot draw path between 大钟寺(12号线) and 大钟寺(13号线) as their coordinates are the same!
+Warning: cannot draw path between 木樨地(1号线) and 木樨地(16号线) as their coordinates are the same!
+Drawing done! Saving to ../test.png...
+</pre>
+
 ### [`draw_congestion.py`](/src/graph/draw_congestion.py): Draw and tally congestion stats for a network
 ```
 usage: draw_congestion.py [-h] [-c COLOR_MAP] [-o OUTPUT] [--dpi DPI] [-i INCLUDE_LINES | -x EXCLUDE_LINES] [--exclude-virtual] [--exclude-edge] [--include-express] [--exclude-single] [-n LIMIT_NUM]
@@ -2877,4 +2940,18 @@ options:
                         provided
   --light               Light mode
   --dark                Dark mode
+```
+
+# [`mcp/`](/src/mcp): MCP Capabilities for the Tool
+This is an MCP server based on FastMCP. You can then use natural language to talk to this tool with MCP clients such as VS Code.
+Please see [its specific docs](/docs/mcp.md) to see instructions for deployment.
+```
+usage: server.py [-h] [--http] [--path PATH] [--address ADDRESS] [--port PORT]
+
+options:
+  -h, --help         show this help message and exit
+  --http             Enable HTTP transport mode
+  --path PATH        Server path
+  --address ADDRESS  Server address
+  --port PORT        Server port
 ```

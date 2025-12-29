@@ -12,13 +12,15 @@ from nicegui import app, ui
 from src.city.city import get_all_cities
 from src.city.line import Line
 from src.common.common import suffix_s
-from src.ui.common import get_default_line, get_default_direction
+from src.ui.common import get_default_line, get_default_direction, get_default_station
 from src.ui.drawers import right_drawer, assign_globals
 from src.ui.info_tab import info_tab, InfoData
+from src.ui.stats_tab import stats_tab, StatsData
+from src.ui.timetable_tab import timetable_tab, TimetableData
 from src.ui.trains_tab import trains_tab, TrainsData
 
 
-@ui.page("/select_city", title="Beijing Subway Tools - Select City")
+@ui.page("/", title="Beijing Subway Tools - Select City")
 async def city_selector() -> None:
     """ City selection page """
     cities = get_all_cities()
@@ -46,16 +48,19 @@ async def main_page(city_name: str) -> None:
             with ui.tabs() as tabs:
                 info_tab_ = ui.tab("Basic Information", icon="info")
                 trains_tab_ = ui.tab("Trains", icon="train")
+                timetable_tab_ = ui.tab("Timetable", icon="departure_board")
                 stats_tab_ = ui.tab("Statistics", icon="query_stats")
                 route_tab_ = ui.tab("Route Planning", icon="route")
             with ui.row().classes("items-center"):
                 ui.label(f"Selected City: {city_name}")
-                ui.button(on_click=lambda: ui.navigate.to("/select_city"), icon="change_circle")
+                ui.button(on_click=lambda: ui.navigate.to("/"), icon="change_circle")
 
     with ui.tab_panels(tabs, value=info_tab_).classes("w-full") as panels:
         info_data = InfoData(city.lines, city.station_lines, [], [])
         default_line = get_default_line(city.lines)
-        trains_data = TrainsData(info_data, default_line.name, get_default_direction(default_line), date.today(), [])
+        trains_data = TrainsData(info_data, default_line.name, get_default_direction(default_line), date.today(), "single", [])
+        timetable_data = TimetableData(info_data, get_default_station(set(city.station_lines.keys())), date.today(), {}, {})
+        stats_data = StatsData(info_data, date.today(), {})
         assign_globals(city.lines, city.station_lines)
 
         with ui.tab_panel(info_tab_):
@@ -64,8 +69,11 @@ async def main_page(city_name: str) -> None:
         with ui.tab_panel(trains_tab_):
             trains_tab(city, trains_data)
 
+        with ui.tab_panel(timetable_tab_):
+            timetable_tab(city, timetable_data)
+
         with ui.tab_panel(stats_tab_):
-            ui.label("Statistics will be displayed here.")
+            stats_tab(city, stats_data)
 
         with ui.tab_panel(route_tab_):
             ui.label("Route planning features will be implemented here.")
@@ -78,8 +86,16 @@ async def main_page(city_name: str) -> None:
         for callback in trains_data.info_data.on_line_change:
             callback()
 
+    def switch_to_timetable(station: str, cur_date: date) -> None:
+        """ Switch to the timetable tab """
+        panels.set_value("Timetable")
+        timetable_data.station = station
+        timetable_data.cur_date = cur_date
+        for callback in timetable_data.info_data.on_line_change:
+            callback()
+
     with ui.right_drawer(value=False, top_corner=True, bottom_corner=True) as drawer:
-        right_drawer(city, drawer, switch_to_trains)
+        right_drawer(city, drawer, switch_to_trains, switch_to_timetable)
         with ui.page_sticky(position="top-right", x_offset=20, y_offset=20):
             ui.button(icon="keyboard_double_arrow_right", on_click=lambda: drawer.hide()).props("fab color=accent")
 
@@ -103,7 +119,6 @@ def main() -> None:
     else:
         dark = None
 
-    ui.navigate.to("/select_city")
     if args.browser:
         ui.run(dark=dark, title="Beijing Subway Tools - Browser Mode")
     elif args.window_size is None:

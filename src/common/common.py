@@ -12,7 +12,7 @@ import re
 from _ctypes import PyObj_FromPtr  # type: ignore
 from collections.abc import Iterable, Callable, Sequence, Mapping, Iterator
 from datetime import datetime, date, time, timedelta
-from math import sqrt
+from math import sqrt, sin, cos, radians
 from typing import TypeVar, Any
 
 import questionary
@@ -25,6 +25,7 @@ TimeSpec = tuple[time, bool]
 T = TypeVar("T")
 U = TypeVar("U")
 possible_braces = ["()", "[]", "{}", "<>"]
+EPS = 1e-7
 
 # dict for some better-to-translated characters
 PINYIN_DICT = {
@@ -322,7 +323,7 @@ def format_duration(duration: timedelta | int | float) -> str:
     return "<1min" if result == "" else result
 
 
-def show_direction(stations: list[str], loop: bool = False):
+def direction_repr(stations: list[str], loop: bool = False):
     """ Format station direction, A -> B -> C """
     # choose three intermediate stations
     if len(stations) <= 5:
@@ -523,9 +524,40 @@ def moving_average_dict(data: Mapping[T, int | float], moving_min: int,
     return moving_average(list(data.keys()), lambda x: data[x], moving_min, include_edge)
 
 
+def zero_div(a: float, b: float) -> float:
+    """ Zero-safe devision """
+    if abs(a) < EPS and abs(b) < EPS:
+        return 1.0
+    elif abs(a) < EPS or abs(b) < EPS:
+        return 0.0
+    return a / b
+
+
 def arg_minmax(data: Mapping[T, int | float]) -> tuple[T, T]:
     """ Calculate argmin & argmax """
     return min(data.keys(), key=lambda x: data[x]), max(data.keys(), key=lambda x: data[x])
+
+
+def shift_max(orig: int, clamp: int, n: int) -> int:
+    """ Turn 0...N into clamp...N + 0...clamp - 1 """
+    assert 0 <= orig < n and 0 <= clamp < n, (orig, clamp, n)
+    if orig < clamp:
+        return n + orig
+    return orig
+
+
+def to_polar(x: float, y: float, r: float, deg: float) -> tuple[float, float]:
+    """ Convert from polar (r, deg) to cartesian (x, y), top is 0 degree """
+    rad = radians(deg)
+    return x + r * sin(rad), y - r * cos(rad)
+
+
+def valid_positive(input_str: str) -> str | None:
+    """ Validation function for positive integer """
+    try:
+        return None if int(input_str) > 0 else "Must be a positive integer"
+    except ValueError:
+        return "Must be a valid integer"
 
 
 def sequence_data(sequence: Sequence[T], *,
