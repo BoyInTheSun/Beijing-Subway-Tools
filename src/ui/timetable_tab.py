@@ -99,11 +99,6 @@ def timetable_tab(city: City, data: TimetableData) -> None:
             on_any_change()
 
         data.info_data.on_line_change.append(lambda: on_station_change(data.station, data.cur_date))
-        ui.add_css("""
-.timetable-tab-selection .q-select .q-field__input--padding {
-    max-width: 50px;
-}
-        """)
 
         ui.label("Viewing timetable for station ")
         select_station = ui.select(
@@ -204,6 +199,8 @@ def timetables(
     hour_display: StyleMode = "prefix", show_skipped: bool = False
 ) -> None:
     """ Display the timetables """
+    if station not in station_lines:
+        return
     lines = sorted(station_lines[station], key=lambda l: l.index)
     first = True
     with ui.column().classes("gap-y-4 w-full"):

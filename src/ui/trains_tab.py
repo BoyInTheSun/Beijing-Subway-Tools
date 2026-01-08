@@ -147,6 +147,10 @@ def trains_tab(city: City, data: TrainsData) -> None:
                 ).classes(card_text)
 
         with ui.card():
+            ui.tooltip().bind_text_from(
+                data, "train_list",
+                backward=lambda tl: ("Route combinations: " + str(len({t.routes_str() for t in tl})))
+            )
             with ui.card_section():
                 ui.label("# Routes").classes(card_caption)
                 ui.label().bind_text_from(
@@ -250,46 +254,6 @@ def route_timeline(
     route_mode: Literal["single", "combination"] = "single"
 ) -> None:
     """ Create timelines for train routes """
-    ui.add_css("""
-.train-tab-timeline-parent .q-timeline__subtitle {
-    margin-bottom: 0;
-    padding-right: 16px !important;
-}
-.train-tab-timeline-parent .q-timeline__content {
-    padding-left: 0 !important;
-    gap: 0 !important;
-    align-items: flex-end !important;
-}
-.train-tab-timeline-parent .q-timeline__entry--icon .q-timeline__content {
-    padding-top: 8px !important;
-}
-.text-invisible {
-    visibility: hidden;
-}
-.skipped-station-dot .q-timeline__dot:before {
-    transform: rotate(45deg);
-    -webkit-transform: rotate(45deg);
-    border-width: 0 3px 3px 0;
-    border-radius: 0;
-    border-bottom: 3px solid;
-    border-right: 3px solid;
-    background: linear-gradient(to top right,
-             rgba(0,0,0,0) 0%,
-             rgba(0,0,0,0) calc(50% - 1.51px),
-             currentColor calc(50% - 1.5px),
-             currentColor 50%,
-             currentColor calc(50% + 1.5px),
-             rgba(0,0,0,0) calc(50% + 1.51px),
-             rgba(0,0,0,0) 100%);
-}
-    """)
-    for each_line in city.lines.values():
-        ui.add_css(f"""
-.train-tab-timeline-parent .text-line-{each_line.index} {{
-    color: {each_line.color} !important;
-}}
-        """)
-
     current_selection: set[str] = set() if highlight_routes is None else highlight_routes
     def handle_click(clicked_route: str) -> None:
         """ Handle timeline click events """
@@ -365,6 +329,8 @@ def route_timeline(
                         i == len(inner_stations) - 1 and entry_after is not None
                     ):
                         express_icon = "sync_alt"
+                    if station in skip_stations and express_icon is not None:
+                        express_icon = ""
                     with ui.timeline_entry(
                         icon=express_icon,
                         color=("invisible" if i < start_index else None)

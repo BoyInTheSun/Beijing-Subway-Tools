@@ -378,21 +378,48 @@
                 apply_time: [{date_group: "工作日", start: "10:00", end: "17:00"}, {date_group: "双休日"}]
             }
         ],
+        // 参考：https://www.bilibili.com/video/BV1wEBBBuEkK/
+        "永安里": [
+            {from: "1号线", to: "17号线", minutes: 3}
+        ],
         // 参考：https://www.bilibili.com/video/BV1PVcBekEd1/
         "工人体育场": [
-            {from: "3号线", to: "17号线北段", minutes: 1},
-            {from: "17号线北段", to: "3号线", minutes: 0.5}
+            {from: "3号线", to: "17号线", minutes: 1},
+            {from: "17号线", to: "3号线", minutes: 0.5}
             // 节点17->3
+        ],
+        // 参考：https://www.bilibili.com/video/BV1VRvrB8E5w/
+        "东大桥": [
+            {from: "6号线", to: "17号线", minutes: 3}
         ],
         // 参考：https://www.bilibili.com/video/BV1LK41147SW/
         "太阳宫": [
-            {from: "10号线", to: "17号线北段", minutes: 3}
+            {from: "10号线", to: "17号线", minutes: 3}
         ],
         // 参考：https://www.bilibili.com/video/BV1wmqfYiEHY
         "西坝河": [
-            {from: "12号线", to: "17号线北段", minutes: 2.5},
-            {from: "17号线北段", to: "12号线", minutes: 1.5}
+            {from: "12号线", to: "17号线", minutes: 2.5},
+            {from: "17号线", to: "12号线", minutes: 1.5}
             // 节点17->12
+        ],
+        // 参考：https://www.bilibili.com/video/BV1hUBkBPEpT/
+        "天通苑": [
+            {from: "5号线", to: "18号线", minutes: 4}
+        ],
+        // 参考：https://www.bilibili.com/video/BV1QViFBgEhC/
+        "回龙观东大街": [
+            {from: "8号线", to: "18号线", minutes: 1.5}
+        ],
+        // 参考：https://www.bilibili.com/video/BV1crBzBGERV/
+        "马连洼": [
+            {from: "16号线", to: "18号线", minutes: 2.5},
+            {from: "18号线", to: "16号线", minutes: 3}
+        ],
+        // 参考：https://www.bilibili.com/video/BV1azBBB9EAS/
+        "天通苑东": [
+            {from: "17号线", to: "18号线", minutes: 0.5},
+            {from: "18号线", to: "17号线", minutes: 1}
+            // 节点17->18
         ],
         // 参考：https://www.bilibili.com/video/BV18Y411a7Mc/
         "积水潭": [
@@ -421,9 +448,10 @@
             // 节点12->19
         ],
         // 参考：https://www.bilibili.com/video/BV13Y411f7Tb/
+        // 19-14新通道：https://www.bilibili.com/video/BV1b8BaBiE1d
         "景风门": [
             {from: "14号线", to: "19号线", minutes: 2.5},
-            {from: "19号线", to: "14号线", minutes: 3}
+            {from: "19号线", to: "14号线", minutes: 3.5}
         ],
         "次渠": [
             {from: "17号线", to: "亦庄线", minutes: 1.5}
